@@ -1,11 +1,15 @@
 import cv2
 import mediapipe as mp
 import math
+import vgamepad as vg
 
 # Initialize MediaPipe
 mp_hands = mp.solutions.hands
 mp_draw = mp.solutions.drawing_utils
 hands = mp_hands.Hands(static_image_mode=False, max_num_hands=2, min_detection_confidence=0.7)
+
+# Initialize virtual gamepad
+gamepad = vg.VX360Gamepad()
 
 cap = cv2.VideoCapture(0)
 
@@ -57,8 +61,25 @@ while cap.isOpened():
         y_diff = (right_y - left_y) / height
         direction, turn_force = get_turn_direction(y_diff)
 
+        # Normalize turn to range -1.0 to 1.0
+        turn_val = max(min(y_diff * 5, 1.0), -1.0)  # 5 is sensitivity multiplier
+
         # Calculate 2D distance for acceleration/braking
         motion, accel_force, dist_diff = get_motion_2d(x1, y1, x2, y2)
+
+        # Map acceleration/brake to 0-1 range
+        throttle = 0.0
+        brake = 0.0
+        if motion == "ACCELERATE":
+            throttle = min(accel_force / 300.0, 1.0)
+        elif motion == "BRAKE":
+            brake = min(accel_force / 300.0, 1.0)
+
+        # Send input to virtual gamepad
+        gamepad.left_joystick(x_value=int(turn_val * 32767), y_value=0)
+        gamepad.right_trigger(value=int(throttle * 255))
+        gamepad.left_trigger(value=int(brake * 255))
+        gamepad.update()
 
         # Draw points and connecting line
         cv2.circle(frame, (x1, y1), 8, (255, 0, 0), cv2.FILLED)
