@@ -1,0 +1,7 @@
+# Foundation 
+# Acceleration and brake was controlled using depth (z co-ordinate of hands)
+# Body Pose did not yield good results for Brake/Acceleration
+# Switched to ROI method to act as pedals for Gas/Brake
+# Made the pedals position adjustable. Click and drag them to place them anywhere in screen
+# Adjusted steering sensitivity to increase exponentialy accoring to the angle made with hands
+# Dynamic throttle response : response increase quick the longer you hold the pedals (Still needs work)

@@ -1,2 +1,0 @@
-The general idea is to position hands as if you were controling a virtual steering to make it act as a joystick controller.
-Hand recognition
