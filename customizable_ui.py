@@ -22,6 +22,12 @@ roi_width = 100
 roi_height = 100
 roi_y1, roi_y2 = None, None
 
+#accumulators
+acc_hold_duration = 0
+brake_hold_duration = 0
+
+throttle_play = 10  # higher = slower ramp-up
+
 # ROI positions (initial values)
 acc_x1 = 50
 acc_y1 = 400  # You can tweak this based on your camera height
@@ -120,17 +126,6 @@ while True:
     acc_roi = foot_frame[acc_y1:acc_y2, acc_x1:acc_x2]
     brake_roi = foot_frame[brake_y1:brake_y2, brake_x1:brake_x2]
 
-
-    # # Accelerator ROI (bottom-left)
-    # acc_x1 = 50
-    # acc_x2 = acc_x1 + roi_width
-    # acc_roi = foot_frame[y1:y2, acc_x1:acc_x2]
-
-    # # Brake ROI (bottom-right)
-    # brake_x2 = w - 50
-    # brake_x1 = brake_x2 - roi_width
-    # brake_roi = foot_frame[y1:y2, brake_x1:brake_x2]
-
     # Convert to grayscale and threshold (both ROIs)
     acc_gray = cv2.cvtColor(acc_roi, cv2.COLOR_BGR2GRAY)
     brake_gray = cv2.cvtColor(brake_roi, cv2.COLOR_BGR2GRAY)
@@ -179,13 +174,19 @@ while True:
         turn_val = max(min(math.tanh(y_diff * steering_sensitivity), 1.0), -1.0)  # 5 is sensitivity multiplier
         # turn_val = math.tanh(y_diff * steering_sensitivity)
 
-        # Map acceleration/brake to 0-1 range
-        throttle = 0.0
-        brake = 0.0
+        # Increment hold duration counters
         if apply_accelerator:
-            throttle = .7
-        elif apply_brake:
-            brake = .7
+            acc_hold_duration += 1
+        else:
+            acc_hold_duration = 0
+        
+        if apply_brake:
+            brake_hold_duration += 1
+        else:
+            brake_hold_duration = 0
+        # Scale throttle/brake values (max out of 1.0)
+        throttle = min(1.0, acc_hold_duration / throttle_play)
+        brake = min(1.0, brake_hold_duration / throttle_play)
 
         # Send input to virtual gamepad
         gamepad.left_joystick(x_value=int(turn_val * 32767), y_value=0) # 16 bit signed
