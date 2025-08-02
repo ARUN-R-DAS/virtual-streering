@@ -17,10 +17,10 @@ left_foot_x, right_foot_x = None, None # initializing to avoid crash
 
 # Initialize MediaPipe
 mp_hands = mp.solutions.hands
-mp_pose = mp.solutions.pose
+# mp_pose = mp.solutions.pose
 mp_draw = mp.solutions.drawing_utils
 hands = mp_hands.Hands(static_image_mode=False, max_num_hands=2, min_detection_confidence=0.7)
-pose = mp_pose.Pose()
+# pose = mp_pose.Pose()
 
 # Initialize virtual gamepad
 gamepad = vg.VX360Gamepad()
@@ -56,11 +56,11 @@ while True:
         break
 
     hand_frame = cv2.flip(hand_frame, 1)
-    # foot_frame = cv2.flip(foot_frame, 1)
+    foot_frame = cv2.flip(foot_frame, 1)
     hand_frame_rgb = cv2.cvtColor(hand_frame, cv2.COLOR_BGR2RGB)
     foot_frame_rgb = cv2.cvtColor(foot_frame, cv2.COLOR_BGR2RGB)
     hand_result = hands.process(hand_frame_rgb)
-    pose_result = pose.process(foot_frame_rgb)
+    # pose_result = pose.process(foot_frame_rgb)
     
 
     height, width, _ = hand_frame.shape
@@ -69,7 +69,6 @@ while True:
         lm1 = hand_result.multi_hand_landmarks[0].landmark[9]  # palm centre
         lm2 = hand_result.multi_hand_landmarks[1].landmark[9]  
 
-        # z1,z2 = lm1.z, lm2.z       REMOVED BY FOOT CONTROLS
         # ----------------- BLACK PATCH BRAKE LOGIC ------------------
         # ---------------- TWO PATCHES: ACCELERATOR (left) + BRAKE (right) ----------------
         h, w, _ = foot_frame.shape
@@ -111,55 +110,7 @@ while True:
         cv2.putText(foot_frame, f"BRK: {brake_ratio:.2f}", (brake_x1, y1 - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
 
-
-        # #---------FOOT CONTROLS----------
-        # if pose_result.pose_landmarks:
-        #     landmarks = pose_result.pose_landmarks.landmark
-
-        #     #Get cordinates relative to image size
-        #     h,w,_ = foot_frame.shape
-
-        #     #---------------just tip---------------------------------
-        #     right_foot_tip = landmarks[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX]
-        #     left_foot_tip = landmarks[mp_pose.PoseLandmark.LEFT_FOOT_INDEX]
-            
-        #     left_foot_x, left_foot_y = int(left_foot_tip.x * w), int(left_foot_tip.y * h)
-        #     right_foot_x, right_foot_y = int(right_foot_tip.x * w), int(right_foot_tip.y * h)
-        #     #--------------------averaging---------------------
-        #     # left_foot_x, left_foot_x = int(left_foot_tip.x * w), int(left_foot_tip.y * h)
-        #     # right_foot_x, right_foot_y = int(right_foot_tip.x * w), int(right_foot_tip.y * h)
-
-        #     # right_ankle = landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE]
-        #     # right_heel = landmarks[mp_pose.PoseLandmark.RIGHT_HEEL]
-        #     # right_foot_tip = landmarks[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX]
-
-        #     # left_ankle = landmarks[mp_pose.PoseLandmark.LEFT_ANKLE]
-        #     # left_heel = landmarks[mp_pose.PoseLandmark.LEFT_HEEL]
-        #     # left_foot_tip = landmarks[mp_pose.PoseLandmark.LEFT_FOOT_INDEX]
-            
-        #     # # Average X and Y
-        #     # left_foot_x = int(((left_ankle.x + left_heel.x + left_foot_tip.x) / 3) * w)
-        #     # left_foot_x = int(((left_ankle.y + left_heel.y + left_foot_tip.y) / 3) * h)
-
-        #     # right_foot_x = int(((right_ankle.x + right_heel.x + right_foot_tip.x) / 3) * w)
-        #     # right_foot_y = int(((right_ankle.y + right_heel.y + right_foot_tip.y) / 3) * h)
-        #     #---------------------------------------------------------------------
-
-        #     #Drawing circles for visualization
-        #     cv2.circle(foot_frame, (left_foot_x, left_foot_x), 10, (255,0,0), -1)
-        #     cv2.circle(foot_frame, (right_foot_x, right_foot_y), 10, (0, 255, 0), -1)
-
-        #     #pedals logic
-        #     if right_foot_y > threshold_foot_y:
-        #         apply_brake = True
-        #     else:
-        #         apply_brake = False
-        #     if left_foot_x > threshold_foot_y:
-        #         apply_accelerator = True
-        #     else:
-        #         apply_accelerator = False
-        #----------------------------------------------------------------------
-
+        #------------------hand stuff--------------------
         x1, y1 = int(lm1.x * width), int(lm1.y * height)
         x2, y2 = int(lm2.x * width), int(lm2.y * height)
     
@@ -175,9 +126,6 @@ while True:
 
         # Normalize turn to range -1.0 to 1.0
         turn_val = max(min(y_diff * steering_sensitivity, 1.0), -1.0)  # 5 is sensitivity multiplier
-
-        # #Use depth based motion detection
-        # motion, depth_force, depth_diff = get_motion_by_depth(z1,z2,thresh_for_acc_brake)
 
         # Map acceleration/brake to 0-1 range
         throttle = 0.0
@@ -199,43 +147,15 @@ while True:
         cv2.line(hand_frame, (x1, y1), (x2, y2), (0, 255, 255), 2)
 
         # Display steering info
-        cv2.putText(hand_frame, f"Turn: {direction}", (10, 40),
+        cv2.putText(hand_frame, f"Turn: {direction} y_diff = {y_diff}", (10, 40),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
         cv2.putText(hand_frame, f"Turn Force: {turn_force:.2f}", (10, 70),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-
-        # # Display acceleration/brake info
-        # cv2.putText(hand_frame, f"Motion: {motion}", (10, 110),
-        #             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 200, 255), 2)
-        # cv2.putText(hand_frame, f"Force: {depth_force:.2f}", (10, 140),
-        #             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-
-        # # Show depth difference
-        # cv2.putText(hand_frame, f"Z1: {z1:.2f} Z2: {z2:.2f}", (10, 200), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 2)
-        # cv2.putText(hand_frame, f"Depth Diff: {depth_diff:.3f}", (10, 230), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,0), 2)
-        # if left_foot_x and right_foot_x:
-        #     cv2.putText(foot_frame, f"left_foot_x : {str(left_foot_x)} left_foot_x : {str(left_foot_x)}", (10, 40),
-        #                 cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 200, 255), 2)
-        #     cv2.putText(foot_frame, f"right_foot_x : {str(right_foot_x)} right_foot_y : {str(right_foot_y)}", (10, 70),
-        #                 cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 200, 255), 2)
-        #     cv2.putText(foot_frame, f"apply_brake : {apply_brake} apply_accelerator : {apply_accelerator}",(10,100),
-        #                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-
 
     # Draw landmarks
     if hand_result.multi_hand_landmarks:
         for handLms in hand_result.multi_hand_landmarks:
             mp_draw.draw_landmarks(hand_frame, handLms, mp_hands.HAND_CONNECTIONS)
-
-    # if pose_result.pose_landmarks:
-    #     mp_draw.draw_landmarks(
-    #         foot_frame,
-    #         pose_result.pose_landmarks,
-    #         mp_pose.POSE_CONNECTIONS,
-    #         landmark_drawing_spec=mp_draw.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=2),
-    #         connection_drawing_spec=mp_draw.DrawingSpec(color=(255, 0, 0), thickness=2)
-    # )
-
 
     # Show the window
     cv2.imshow("Virtual Steering : hand_frame", hand_frame)
