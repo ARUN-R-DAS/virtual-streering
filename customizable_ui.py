@@ -4,7 +4,7 @@ import math
 import vgamepad as vg
 
 #high means fast response
-steering_sensitivity = 5
+steering_sensitivity = 7
 acc_sensitivity = 10
 brake_sensitivity = 20
 thresh_for_acc_brake = -0.015
@@ -55,24 +55,12 @@ foot_cam = cv2.VideoCapture(1)
 
 # Turn detection (based on Y difference between hands)
 def get_turn_direction(y_diff):
-    if y_diff > -0.010:
+    if y_diff > 0:
         return "LEFT", abs(y_diff)
-    elif y_diff < -0.05:
+    elif y_diff < 0:
         return "RIGHT", abs(y_diff)
     else:
         return "STRAIGHT", 0.0
-
-# Motion detection based on 2D hand distance
-def get_motion_by_depth(z1,z2,thresh_for_acc_brake):
-    avg_z = (z1 + z2) / 2
-    diff = avg_z
-    thresh_value = thresh_for_acc_brake
-    if diff < thresh_value:
-        return "ACCELERATE", diff, diff
-    elif diff > thresh_value:
-        return "BRAKE", abs(diff), diff
-    else:
-        return "IDLE", 0.0, diff
 
 def mouse_callback(event, x, y, flags, param):
     global acc_x1, acc_y1, acc_x2, acc_y2
@@ -154,8 +142,8 @@ while True:
     #------------------steering logic--------------------
 
     if hand_result.multi_hand_landmarks and len(hand_result.multi_hand_landmarks) == 2:
-        lm1 = hand_result.multi_hand_landmarks[0].landmark[9]  # palm centre
-        lm2 = hand_result.multi_hand_landmarks[1].landmark[9]  
+        lm1 = hand_result.multi_hand_landmarks[0].landmark[8]  # index
+        lm2 = hand_result.multi_hand_landmarks[1].landmark[8]  
         
         x1, y1 = int(lm1.x * width), int(lm1.y * height)
         x2, y2 = int(lm2.x * width), int(lm2.y * height)
