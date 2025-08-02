@@ -14,6 +14,25 @@ apply_accelerator = False
 apply_brake = False
 
 left_foot_x, right_foot_x = None, None # initializing to avoid crash
+dragging_acc = False
+dragging_brake = False
+selected_box = None
+drag_offset = (0, 0)
+roi_width = 100
+roi_height = 100
+roi_y1, roi_y2 = None, None
+
+# ROI positions (initial values)
+acc_x1 = 50
+acc_y1 = 400  # You can tweak this based on your camera height
+acc_x2 = acc_x1 + roi_width
+acc_y2 = acc_y1 + roi_height
+
+brake_x1 = 500  # Initial right-side value (you can tweak)
+brake_y1 = 400
+brake_x2 = brake_x1 + roi_width
+brake_y2 = brake_y1 + roi_height
+
 
 # Initialize MediaPipe
 mp_hands = mp.solutions.hands
@@ -49,6 +68,37 @@ def get_motion_by_depth(z1,z2,thresh_for_acc_brake):
     else:
         return "IDLE", 0.0, diff
 
+def mouse_callback(event, x, y, flags, param):
+    global acc_x1, acc_y1, acc_x2, acc_y2
+    global brake_x1, brake_y1, brake_x2, brake_y2
+    global selected_box, drag_offset
+
+    if event == cv2.EVENT_LBUTTONDOWN:
+        if acc_x1 <= x <= acc_x2 and acc_y1 <= y <= acc_y2:
+            selected_box = "acc"
+            drag_offset = (x - acc_x1, y - acc_y1)
+        elif brake_x1 <= x <= brake_x2 and brake_y1 <= y <= brake_y2:
+            selected_box = "brake"
+            drag_offset = (x - brake_x1, y - brake_y1)
+
+    elif event == cv2.EVENT_MOUSEMOVE and selected_box:
+        if selected_box == "acc":
+            acc_x1 = x - drag_offset[0]
+            acc_y1 = y - drag_offset[1]
+            acc_x2 = acc_x1 + roi_width
+            acc_y2 = acc_y1 + roi_height
+        elif selected_box == "brake":
+            brake_x1 = x - drag_offset[0]
+            brake_y1 = y - drag_offset[1]
+            brake_x2 = brake_x1 + roi_width
+            brake_y2 = brake_y1 + roi_height
+
+    elif event == cv2.EVENT_LBUTTONUP:
+        selected_box = None
+
+cv2.namedWindow("Virtual Steering : foot_frame")
+cv2.setMouseCallback("Virtual Steering : foot_frame", mouse_callback)
+
 while True:
     ret, hand_frame = hand_cam.read()
     ret2, foot_frame = foot_cam.read()
@@ -66,20 +116,20 @@ while True:
     # ----------------- BLACK PATCH BRAKE LOGIC ------------------
     # ---------------- TWO PATCHES: ACCELERATOR (left) + BRAKE (right) ----------------
     h, w, _ = foot_frame.shape
-    roi_width = 100
-    roi_height = 100
-    y1 = h - roi_height - 20
-    y2 = h - 20
 
-    # Accelerator ROI (bottom-left)
-    acc_x1 = 50
-    acc_x2 = acc_x1 + roi_width
-    acc_roi = foot_frame[y1:y2, acc_x1:acc_x2]
+    acc_roi = foot_frame[acc_y1:acc_y2, acc_x1:acc_x2]
+    brake_roi = foot_frame[brake_y1:brake_y2, brake_x1:brake_x2]
 
-    # Brake ROI (bottom-right)
-    brake_x2 = w - 50
-    brake_x1 = brake_x2 - roi_width
-    brake_roi = foot_frame[y1:y2, brake_x1:brake_x2]
+
+    # # Accelerator ROI (bottom-left)
+    # acc_x1 = 50
+    # acc_x2 = acc_x1 + roi_width
+    # acc_roi = foot_frame[y1:y2, acc_x1:acc_x2]
+
+    # # Brake ROI (bottom-right)
+    # brake_x2 = w - 50
+    # brake_x1 = brake_x2 - roi_width
+    # brake_roi = foot_frame[y1:y2, brake_x1:brake_x2]
 
     # Convert to grayscale and threshold (both ROIs)
     acc_gray = cv2.cvtColor(acc_roi, cv2.COLOR_BGR2GRAY)
@@ -96,13 +146,14 @@ while True:
     apply_brake = brake_ratio > 0.5
 
     # ---------------- Visualization ----------------
-    cv2.rectangle(foot_frame, (acc_x1, y1), (acc_x2, y2), (0, 255, 0), 2)
-    cv2.putText(foot_frame, f"ACC: {acc_ratio:.2f}", (acc_x1, y1 - 10),
+    cv2.rectangle(foot_frame, (acc_x1, acc_y1), (acc_x2, acc_y2), (0, 255, 0), 2)
+    cv2.putText(foot_frame, f"ACC: {acc_ratio:.2f}", (acc_x1, acc_y1 - 10),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
-    cv2.rectangle(foot_frame, (brake_x1, y1), (brake_x2, y2), (0, 0, 255), 2)
-    cv2.putText(foot_frame, f"BRK: {brake_ratio:.2f}", (brake_x1, y1 - 10),
+    cv2.rectangle(foot_frame, (brake_x1, brake_y1), (brake_x2, brake_y2), (0, 0, 255), 2)
+    cv2.putText(foot_frame, f"BRK: {brake_ratio:.2f}", (brake_x1, brake_y1 - 10),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+
     
     #----------------------------------------------------
     #------------------steering logic--------------------
