@@ -1,14 +1,65 @@
 import cv2
+import math
 
 video = cv2.VideoCapture(0)
+
+#initializing
+WHEEL_CENTER_X = 320
+WHEEL_CENTER_Y = 240
 
 while True:
     success, frame = video.read()
     if not success:
         break
 
-        
+    #-------dot detection-----------
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+    # Red color range
+    lower_red1 = (0, 100, 100)
+    upper_red1 = (10, 255, 255)
+
+    lower_red2 = (160, 100, 100)
+    upper_red2 = (180, 255, 255)
+
+    # Masks for red
+    mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
+    mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
     
+    mask = cv2.bitwise_or(mask1, mask2)
+
+    #  Finding contours and Bounding Box
+    contours,_ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    if len(contours) >= 2:
+        contours = sorted(contours, key=cv2.contourArea, reverse=True)[:2]
+
+        centers = []
+        for c in contours:
+            x,y,w,h = cv2.boundingRect(c)
+            cx = x+w // 2
+            cy = y+h // 2
+            centers.append((cx, cy))
+
+            cv2.rectangle(frame, (x,y), (x+w, y+h), (0,255,0), 2)
+            cv2.circle(frame, (cx,cy), 5, (255,0,0), -1)
+        
+        pt1, pt2 = centers
+        cv2.line(frame, pt1, pt2, (0,255,255), 2)
+
+        dx = pt2[0] - pt1[0]
+        dy = pt2[1] - pt1[1]
+        angle_red = math.atan2(dy, dx)
+        angle_deg = math.degrees(angle_red)
+
+        cv2.putText(frame, f"Angle = {angle_deg:.2f}",(100,100),
+                    cv2.FONT_HERSHEY_DUPLEX,1,(0,255,0),1)
+        
+        steering = angle_deg / 90
+        steering = max(-1.0, min(1.0, steering))
+        cv2.putText(frame, f"steering = {steering:.2f}",(100,140),
+                    cv2.FONT_HERSHEY_DUPLEX,1,(0,255,0),1)
+
     cv2.imshow("dot tracking",frame)
     if cv2.waitKey(1) & 0xFF in [ord('q'),ord('Q')]:
         break
