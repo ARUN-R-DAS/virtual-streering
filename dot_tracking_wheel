@@ -1,0 +1,17 @@
+import cv2
+
+video = cv2.VideoCapture(0)
+
+while True:
+    success, frame = video.read()
+    if not success:
+        break
+
+        
+    
+    cv2.imshow("dot tracking",frame)
+    if cv2.waitKey(1) & 0xFF in [ord('q'),ord('Q')]:
+        break
+
+video.release()
+cv2.destroyAllWindows()
